@@ -16,7 +16,7 @@ if not os.path.exists("/home/appuser/.cache/ms-playwright"):
     except Exception as e:
         print(f"Error installing Chromium: {e}")
 
-st.set_page_config(page_title="Dinamo Seat Checker", layout="centered")
+st.set_page_config(page_title="Dinamo Seat Checker", layout="wide")  # <-- CHANGED to 'wide'
 st.title("💺 Dinamo Ticket Seat Checker")
 st.write("Automatically checks available and taken seats for upcoming matches on the official GNK Dinamo ticketing website every minute.")
 
@@ -136,7 +136,7 @@ if "last_run" not in st.session_state or "results" not in st.session_state or \
    (datetime.now() - st.session_state["last_run"]).seconds > 60:
     st.session_state["results"] = fetch_seat_data(email, password)
     st.session_state["last_run"] = datetime.now()
-    st.experimental_rerun()
+    st.rerun()
 
 results = st.session_state.get("results", [])
 
@@ -154,7 +154,7 @@ def colored_table(df):
             available_colors.append("#06d6a0")
     # Default colors for other columns
     cell_colors = [
-        ["white"] * len(df) for _ in df.columns
+        ["darkslategrey"] * len(df) for _ in df.columns
     ]
     # Color just the 'Available' column
     avail_idx = df.columns.get_loc("Available")
@@ -169,6 +169,11 @@ def colored_table(df):
                    align='center',
                    font=dict(size=13))
     )])
+    fig.update_layout(
+        autosize=True,
+        margin=dict(l=0, r=0, t=10, b=0),
+        height=55 + 35 * len(df)  # <-- ADDED: dynamic height based on number of rows
+    )
     return fig
 
 if results:
@@ -176,7 +181,7 @@ if results:
     df = pd.DataFrame(results)
     st.write("Results table:")
     fig = colored_table(df)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, height=fig.layout.height)  # <-- ADDED height
 else:
     st.warning("⚠️ No results found.")
 
