@@ -1,8 +1,17 @@
 import streamlit as st
 import csv
 import io
+import os
+import subprocess
 from datetime import datetime
 from playwright.sync_api import sync_playwright
+
+# ⬆️ Install Chromium browser if missing (for Streamlit Cloud)
+if not os.path.exists("/home/appuser/.cache/ms-playwright"):
+    try:
+        subprocess.run(["playwright", "install", "chromium"], check=True)
+    except Exception as e:
+        print(f"Error installing Chromium: {e}")
 
 st.set_page_config(page_title="Dinamo Seat Checker", layout="centered")
 st.title("💺 Dinamo Ticket Seat Checker")
@@ -128,7 +137,6 @@ if start_check and email and password:
         st.success(f"✅ Found seat data for {len(results)} sector(s).")
         st.write("You can now download the CSV file.")
 
-        # Save to CSV in memory
         csv_buffer = io.StringIO()
         writer = csv.DictWriter(csv_buffer, fieldnames=results[0].keys())
         writer.writeheader()
