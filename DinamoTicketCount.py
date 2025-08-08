@@ -5,6 +5,7 @@ import os
 import subprocess
 from datetime import datetime
 from playwright.sync_api import sync_playwright
+import time
 
 # ⬆️ Install Chromium browser if missing (for Streamlit Cloud)
 if not os.path.exists("/home/appuser/.cache/ms-playwright"):
@@ -15,140 +16,133 @@ if not os.path.exists("/home/appuser/.cache/ms-playwright"):
 
 st.set_page_config(page_title="Dinamo Seat Checker", layout="centered")
 st.title("💺 Dinamo Ticket Seat Checker")
-st.write("Check available and taken seats for upcoming matches on the official GNK Dinamo ticketing website.")
+st.write("Automatically checks available and taken seats for upcoming matches on the official GNK Dinamo ticketing website every minute.")
 
-email = st.text_input("Email", type="default", placeholder="your.email@example.com")
-password = st.text_input("Password", type="password")
+# Hardcoded credentials
+email = "your.email@example.com"
+password = "yourpassword"
 
-start_check = st.button("🎟 Check Seats")
+def fetch_seat_data(email, password):
+    results = []
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
+            page.goto("https://tickets.gnkdinamo.hr/")
 
-if start_check and email and password:
-    with st.spinner("Logging in and checking events... Please wait."):
-        results = []
+            # Login
+            page.click("button:has-text('Prijava')")
+            page.wait_for_selector("input[formcontrolname='username']")
+            page.fill("input[formcontrolname='username']", email)
+            page.fill("input[formcontrolname='password']", password)
+            page.click("div.modal-container button:has-text('Prijava')")
+            page.wait_for_timeout(3000)
 
-        try:
-            with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
-                page = browser.new_page()
-                page.goto("https://tickets.gnkdinamo.hr/")
+            try:
+                page.wait_for_selector("button.game", timeout=5000)
+            except:
+                browser.close()
+                return []
 
-                # Login
-                page.click("button:has-text('Prijava')")
-                page.wait_for_selector("input[formcontrolname='username']")
-                page.fill("input[formcontrolname='username']", email)
-                page.fill("input[formcontrolname='password']", password)
-                page.click("div.modal-container button:has-text('Prijava')")
+            games = page.query_selector_all("button.game")
+            if not games:
+                browser.close()
+                return []
+
+            for index, game in enumerate(games):
+                page.wait_for_selector("button.game")
+                games = page.query_selector_all("button.game")
+                current_game = games[index]
+
+                date = current_game.query_selector(".date").inner_text() if current_game.query_selector(".date") else "N/A"
+                time_ev = current_game.query_selector(".time").inner_text() if current_game.query_selector(".time") else "N/A"
+                teams = " vs ".join([
+                    t.inner_text() for t in current_game.query_selector_all(".team")
+                ]) or "Unknown teams"
+
+                current_game.click()
                 page.wait_for_timeout(3000)
 
-                try:
-                    page.wait_for_selector("button.game", timeout=5000)
-                except:
-                    st.warning("⚠️ No games found.")
-                    browser.close()
-                    st.stop()
+                headers = page.query_selector_all(".acc-header")
+                for header in headers:
+                    try:
+                        header.click()
+                        page.wait_for_timeout(500)
+                    except:
+                        pass
 
-                games = page.query_selector_all("button.game")
-                if not games:
-                    st.warning("⚠️ No games currently available.")
-                    browser.close()
-                    st.stop()
+                sectors = page.query_selector_all("button.sector-button")
+                if not sectors:
+                    page.go_back()
+                    page.wait_for_timeout(2000)
+                    continue
 
-                for index, game in enumerate(games):
-                    page.wait_for_selector("button.game")
-                    games = page.query_selector_all("button.game")
-                    current_game = games[index]
-
-                    date = current_game.query_selector(".date").inner_text() if current_game.query_selector(".date") else "N/A"
-                    time = current_game.query_selector(".time").inner_text() if current_game.query_selector(".time") else "N/A"
-                    teams = " vs ".join([
-                        t.inner_text() for t in current_game.query_selector_all(".team")
-                    ]) or "Unknown teams"
-
-                    current_game.click()
-                    page.wait_for_timeout(3000)
-
-                    headers = page.query_selector_all(".acc-header")
-                    for header in headers:
-                        try:
-                            header.click()
-                            page.wait_for_timeout(500)
-                        except:
-                            pass
-
+                for i in range(len(sectors)):
                     sectors = page.query_selector_all("button.sector-button")
-                    if not sectors:
-                        page.go_back()
-                        page.wait_for_timeout(2000)
-                        continue
+                    sector_button = sectors[i]
 
-                    for i in range(len(sectors)):
-                        sectors = page.query_selector_all("button.sector-button")
-                        sector_button = sectors[i]
+                    sector_name_el = sector_button.query_selector("p")
+                    sector_name = sector_name_el.inner_text().strip() if sector_name_el else f"Sector {i+1}"
 
-                        sector_name_el = sector_button.query_selector("p")
-                        sector_name = sector_name_el.inner_text().strip() if sector_name_el else f"Sector {i+1}"
+                    try:
+                        sector_button.click()
 
-                        try:
-                            sector_button.click()
+                        for _ in range(16):
+                            rects = page.query_selector_all("rect")
+                            if len(rects) > 10:
+                                break
+                            page.wait_for_timeout(500)
+                        else:
+                            continue
 
-                            for _ in range(16):
-                                rects = page.query_selector_all("rect")
-                                if len(rects) > 10:
-                                    break
-                                page.wait_for_timeout(500)
-                            else:
-                                continue
+                        taken = len([r for r in rects if 'occupied' in (r.get_attribute('class') or '')])
+                        total = len(rects)
+                        available = total - taken
 
+                        if available == 0 and total > 0:
+                            page.wait_for_timeout(1500)
+                            rects = page.query_selector_all("rect")
                             taken = len([r for r in rects if 'occupied' in (r.get_attribute('class') or '')])
                             total = len(rects)
                             available = total - taken
 
-                            if available == 0 and total > 0:
-                                page.wait_for_timeout(1500)
-                                rects = page.query_selector_all("rect")
-                                taken = len([r for r in rects if 'occupied' in (r.get_attribute('class') or '')])
-                                total = len(rects)
-                                available = total - taken
+                        results.append({
+                            "Event": teams,
+                            "Date": date,
+                            "Time": time_ev,
+                            "Sector": sector_name,
+                            "Available": available,
+                            "Taken": taken,
+                            "Total": total,
+                            "CheckedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        })
 
-                            results.append({
-                                "Event": teams,
-                                "Date": date,
-                                "Time": time,
-                                "Sector": sector_name,
-                                "Available": available,
-                                "Taken": taken,
-                                "Total": total,
-                                "CheckedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                            })
+                    except:
+                        continue
 
-                        except:
-                            continue
+                page.go_back()
+                page.wait_for_timeout(2000)
 
-                    page.go_back()
-                    page.wait_for_timeout(2000)
+            browser.close()
+    except Exception as e:
+        st.error(f"❌ Something went wrong: {e}")
+        return []
+    return results
 
-                browser.close()
+# Streamlit's auto-refresh using st.experimental_rerun every minute
+if "last_run" not in st.session_state or "results" not in st.session_state or \
+   (datetime.now() - st.session_state["last_run"]).seconds > 60:
+    st.session_state["results"] = fetch_seat_data(email, password)
+    st.session_state["last_run"] = datetime.now()
+    st.experimental_rerun()
 
-        except Exception as e:
-            st.error(f"❌ Something went wrong: {e}")
-            st.stop()
+results = st.session_state.get("results", [])
 
-    if results:
-        st.success(f"✅ Found seat data for {len(results)} sector(s).")
-        st.write("You can now download the CSV file.")
+if results:
+    st.success(f"✅ Found seat data for {len(results)} sector(s). (Last checked: {results[0]['CheckedAt']})")
+    st.write("Results table:")
+    st.dataframe(results)
+else:
+    st.warning("⚠️ No results found.")
 
-        csv_buffer = io.StringIO()
-        writer = csv.DictWriter(csv_buffer, fieldnames=results[0].keys())
-        writer.writeheader()
-        writer.writerows(results)
-        csv_data = csv_buffer.getvalue()
-
-        timestamp = datetime.now().strftime("%d%m%Y_%H%M%S")
-        st.download_button(
-            label="⬇️ Download CSV",
-            data=csv_data,
-            file_name=f"DinamoChecker_{timestamp}.csv",
-            mime="text/csv"
-        )
-    else:
-        st.warning("⚠️ No results found.")
+st.write("This page refreshes automatically every minute to show up-to-date seat information.")
