@@ -6,6 +6,8 @@ import subprocess
 from datetime import datetime
 from playwright.sync_api import sync_playwright
 import time
+import pandas as pd
+import plotly.graph_objects as go  # <-- NEW
 
 # ⬆️ Install Chromium browser if missing (for Streamlit Cloud)
 if not os.path.exists("/home/appuser/.cache/ms-playwright"):
@@ -138,10 +140,43 @@ if "last_run" not in st.session_state or "results" not in st.session_state or \
 
 results = st.session_state.get("results", [])
 
+def colored_table(df):
+    # Color map logic: green if available>0, red if available==0, orange if <30% available
+    available_colors = []
+    for v, total in zip(df["Available"], df["Total"]):
+        if total == 0:
+            available_colors.append("lightgray")
+        elif v == 0:
+            available_colors.append("#ff4b4b")
+        elif v / total < 0.3:
+            available_colors.append("#ffd166")
+        else:
+            available_colors.append("#06d6a0")
+    # Default colors for other columns
+    cell_colors = [
+        ["white"] * len(df) for _ in df.columns
+    ]
+    # Color just the 'Available' column
+    avail_idx = df.columns.get_loc("Available")
+    for i, col in enumerate(available_colors):
+        cell_colors[avail_idx][i] = col
+
+    fig = go.Figure(data=[go.Table(
+        header=dict(values=list(df.columns),
+                    fill_color='#118ab2', font=dict(color='white',size=14), align='center'),
+        cells=dict(values=[df[col] for col in df.columns],
+                   fill_color=cell_colors,
+                   align='center',
+                   font=dict(size=13))
+    )])
+    return fig
+
 if results:
     st.success(f"✅ Found seat data for {len(results)} sector(s). (Last checked: {results[0]['CheckedAt']})")
+    df = pd.DataFrame(results)
     st.write("Results table:")
-    st.dataframe(results)
+    fig = colored_table(df)
+    st.plotly_chart(fig, use_container_width=True)
 else:
     st.warning("⚠️ No results found.")
 
