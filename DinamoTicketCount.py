@@ -37,10 +37,10 @@ def fetch_seat_data(email, password):
             page.fill("input[formcontrolname='username']", email)
             page.fill("input[formcontrolname='password']", password)
             page.click("div.modal-container button:has-text('Prijava')")
-            page.wait_for_timeout(1000)  # reduced from 3000
+            page.wait_for_timeout(3000)
 
             try:
-                page.wait_for_selector("button.game", timeout=3000)  # reduced timeout
+                page.wait_for_selector("button.game", timeout=5000)
             except:
                 browser.close()
                 return []
@@ -62,20 +62,20 @@ def fetch_seat_data(email, password):
                 ]) or "Unknown teams"
 
                 current_game.click()
-                page.wait_for_timeout(1000)  # reduced from 3000
+                page.wait_for_timeout(3000)
 
                 headers = page.query_selector_all(".acc-header")
                 for header in headers:
                     try:
                         header.click()
-                        page.wait_for_timeout(200)  # reduced from 500
+                        page.wait_for_timeout(500)
                     except:
                         pass
 
                 sectors = page.query_selector_all("button.sector-button")
                 if not sectors:
                     page.go_back()
-                    page.wait_for_timeout(1000)  # reduced from 2000
+                    page.wait_for_timeout(2000)
                     continue
 
                 for i in range(len(sectors)):
@@ -88,11 +88,11 @@ def fetch_seat_data(email, password):
                     try:
                         sector_button.click()
 
-                        for _ in range(8):  # reduced from 16
+                        for _ in range(16):
                             rects = page.query_selector_all("rect")
                             if len(rects) > 10:
                                 break
-                            page.wait_for_timeout(200)  # reduced from 500
+                            page.wait_for_timeout(500)
                         else:
                             continue
 
@@ -101,7 +101,7 @@ def fetch_seat_data(email, password):
                         available = total - taken
 
                         if available == 0 and total > 0:
-                            page.wait_for_timeout(500)  # reduced from 1500
+                            page.wait_for_timeout(1500)
                             rects = page.query_selector_all("rect")
                             taken = len([r for r in rects if 'occupied' in (r.get_attribute('class') or '')])
                             total = len(rects)
@@ -122,7 +122,7 @@ def fetch_seat_data(email, password):
                         continue
 
                 page.go_back()
-                page.wait_for_timeout(1000)  # reduced from 2000
+                page.wait_for_timeout(2000)
 
             browser.close()
     except Exception as e:
@@ -132,7 +132,9 @@ def fetch_seat_data(email, password):
 
 # Remove auto refresh, add Refresh button
 if "results" not in st.session_state:
-    st.session_state["results"] = []
+    # Fetch data automatically on first run
+    st.session_state["results"] = fetch_seat_data(email, password)
+    st.session_state["last_checked"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 if "last_checked" not in st.session_state:
     st.session_state["last_checked"] = None
 
