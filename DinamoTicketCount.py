@@ -19,8 +19,8 @@ st.title("💺 Dinamo Ticket Seat Checker")
 st.write("Automatically checks available and taken seats for upcoming matches on the official GNK Dinamo ticketing website every minute.")
 
 # Hardcoded credentials
-email = "your.email@example.com"
-password = "yourpassword"
+email = "jakov.mandic.27@gmail.com"
+password = "cfgdqverkt"
 
 def fetch_seat_data(email, password):
     results = []
