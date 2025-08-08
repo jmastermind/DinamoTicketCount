@@ -7,7 +7,6 @@ from datetime import datetime
 from playwright.sync_api import sync_playwright
 import time
 import pandas as pd
-import plotly.graph_objects as go  # <-- NEW
 
 # ⬆️ Install Chromium browser if missing (for Streamlit Cloud)
 if not os.path.exists("/home/appuser/.cache/ms-playwright"):
@@ -143,49 +142,41 @@ if st.button("🔄 Refresh"):
 
 results = st.session_state.get("results", [])
 
-def colored_table(df):
+def style_table(df):
     # Color map logic: green if available>0, red if available==0, orange if <30% available
-    available_colors = []
-    for v, total in zip(df["Available"], df["Total"]):
+    def color_available(val, total):
         if total == 0:
-            available_colors.append("lightgray")
-        elif v == 0:
-            available_colors.append("#ff4b4b")
-        elif v / total < 0.3:
-            available_colors.append("#ffd166")
+            return "background-color: lightgray"
+        elif val == 0:
+            return "background-color: #ff4b4b"
+        elif val / total < 0.3:
+            return "background-color: #ffd166"
         else:
-            available_colors.append("#06d6a0")
-    # Default colors for other columns
-    cell_colors = [
-        ["darkslategrey"] * len(df) for _ in df.columns
-    ]
-    # Color just the 'Available' column
-    avail_idx = df.columns.get_loc("Available")
-    for i, col in enumerate(available_colors):
-        cell_colors[avail_idx][i] = col
+            return "background-color: #06d6a0"
 
-    fig = go.Figure(data=[go.Table(
-        header=dict(values=list(df.columns),
-                    fill_color='#118ab2', font=dict(color='white',size=14), align='center'),
-        cells=dict(values=[df[col] for col in df.columns],
-                   fill_color=cell_colors,
-                   align='center',
-                   font=dict(size=13))
-    )])
-    fig.update_layout(
-        autosize=True,
-        margin=dict(l=0, r=0, t=10, b=0),
-        height=55 + 35 * len(df)  # <-- ADDED: dynamic height based on number of rows
+    styled_df = df.style
+    if "Available" in df.columns and "Total" in df.columns:
+        styled_df = styled_df.apply(
+            lambda row: [
+                color_available(row["Available"], row["Total"]) if col == "Available" else ""
+                for col in df.columns
+            ],
+            axis=1
+        )
+    styled_df = styled_df.set_table_styles(
+        [{
+            'selector': 'th',
+            'props': [('background-color', '#118ab2'), ('color', 'white')]
+        }]
     )
-    return fig
+    return styled_df
 
 if results:
     last_checked = st.session_state.get("last_checked", results[0]['CheckedAt'] if results else "")
     st.success(f"✅ Found seat data for {len(results)} sector(s). (Last checked: {last_checked})")
     df = pd.DataFrame(results)
     st.write("Results table:")
-    fig = colored_table(df)
-    st.plotly_chart(fig, use_container_width=True, height=fig.layout.height)  # <-- ADDED height
+    st.dataframe(style_table(df), use_container_width=True)
 else:
     st.warning("⚠️ No results found.")
 
