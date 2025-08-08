@@ -18,7 +18,7 @@ if not os.path.exists("/home/appuser/.cache/ms-playwright"):
 
 st.set_page_config(page_title="Dinamo Seat Checker", layout="wide")  # <-- CHANGED to 'wide'
 st.title("💺 Dinamo Ticket Seat Checker")
-st.write("Automatically checks available and taken seats for upcoming matches on the official GNK Dinamo ticketing website every minute.")
+st.write("Automatically checks available and taken seats for upcoming matches on the official GNK Dinamo ticketing website.")
 
 # Hardcoded credentials
 email = "jakov.mandic.27@gmail.com"
@@ -131,12 +131,15 @@ def fetch_seat_data(email, password):
         return []
     return results
 
-# Streamlit's auto-refresh using st.experimental_rerun every minute
-if "last_run" not in st.session_state or "results" not in st.session_state or \
-   (datetime.now() - st.session_state["last_run"]).seconds > 60:
+# Remove auto refresh, add Refresh button
+if "results" not in st.session_state:
+    st.session_state["results"] = []
+if "last_checked" not in st.session_state:
+    st.session_state["last_checked"] = None
+
+if st.button("🔄 Refresh"):
     st.session_state["results"] = fetch_seat_data(email, password)
-    st.session_state["last_run"] = datetime.now()
-    st.rerun()
+    st.session_state["last_checked"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 results = st.session_state.get("results", [])
 
@@ -177,7 +180,8 @@ def colored_table(df):
     return fig
 
 if results:
-    st.success(f"✅ Found seat data for {len(results)} sector(s). (Last checked: {results[0]['CheckedAt']})")
+    last_checked = st.session_state.get("last_checked", results[0]['CheckedAt'] if results else "")
+    st.success(f"✅ Found seat data for {len(results)} sector(s). (Last checked: {last_checked})")
     df = pd.DataFrame(results)
     st.write("Results table:")
     fig = colored_table(df)
@@ -185,4 +189,4 @@ if results:
 else:
     st.warning("⚠️ No results found.")
 
-st.write("This page refreshes automatically every minute to show up-to-date seat information.")
+st.write("Click 'Refresh' to update seat information.")
