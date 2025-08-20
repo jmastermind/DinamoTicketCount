@@ -1,5 +1,14 @@
 import json
 from datetime import datetime
+import streamlit as st
+import csv
+import io
+import os
+import subprocess
+from datetime import datetime
+from playwright.sync_api import sync_playwright
+import time
+import pandas as pd
 
 email = "jakov.mandic.27@gmail.com"
 password = "cfgdqverkt"
@@ -99,6 +108,7 @@ def fetch_seat_data(email, password):
                             "CheckedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         })
 
+
                     except:
                         continue
 
@@ -113,29 +123,11 @@ def fetch_seat_data(email, password):
 
 def main():
     results = fetch_seat_data(email, password)
-
-    # Calculate totals
-    total_taken = sum(item.get("Taken", 0) for item in results)
-    total_available = sum(item.get("Available", 0) for item in results)
-
-    # Add total row
-    if results:
-        results.append({
-            "Event": "TOTAL",
-            "Date": "",
-            "Time": "",
-            "Sector": "",
-            "Available": total_available,
-            "Taken": total_taken,
-            "Total": "",
-            "CheckedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        })
-
     out = {
         "last_checked": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "results": results
     }
-    with open("results.json", "w") as f:
+    with open("DinamoTicketCount/results.json", "w") as f:
         json.dump(out, f)
 
 if __name__ == "__main__":
