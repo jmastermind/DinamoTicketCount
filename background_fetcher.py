@@ -123,6 +123,24 @@ def fetch_seat_data(email, password):
 
 def main():
     results = fetch_seat_data(email, password)
+    # Calculate the total available and taken values
+    total_available = sum(r.get("Available", 0) for r in results)
+    total_taken = sum(r.get("Taken", 0) for r in results)
+    total_total = sum(r.get("Total", 0) for r in results)
+    
+    # Add the summary row
+    summary_row = {
+        "Event": "TOTAL",
+        "Date": "",
+        "Time": "",
+        "Sector": "",
+        "Available": total_available,
+        "Taken": total_taken,
+        "Total": total_total,
+        "CheckedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    results.append(summary_row)
+    
     out = {
         "last_checked": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "results": results
