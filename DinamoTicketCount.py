@@ -3,9 +3,14 @@ import pandas as pd
 import json
 import os
 
-st.set_page_config(page_title="Dinamo Seat Checker", layout="wide")
-st.title("💺 Dinamo Ticket Seat Checker")
-st.write("Automatically checks available and taken seats for upcoming matches on the official GNK Dinamo ticketing website.")
+st.set_page_config(page_title="Zona Dinamo Seat Checker", layout="wide")
+st.title("💺 Zona Dinamo Seat Checker")
+st.write("Automatically checks available and taken seats for upcoming matches on the official GNK Dinamo Zagreb ticketing website.")
+
+# Add the custom row with styled text and hyperlink
+st.markdown(
+    'Click [**HERE**](https://app.powerbi.com/view?r=eyJrIjoiMTk3NDIxNjAtYzk5Zi00ZTA1LWJjMmEtOTZiNTg4ODRlZjRkIiwidCI6IjE0YWU0YWI5LWE3MzEtNGZhZS05MTQxLTBkZTMyYmU4MmNhOCIsImMiOjl9) to visit a more in-depth view with a historical database, made by glorious **crophantom**.'
+)
 
 # Load latest results
 if os.path.exists("results.json"):
@@ -53,4 +58,4 @@ if results:
 else:
     st.warning("⚠️ No results found.")
 
-st.write("This page auto-updates every 2 minutes. Data is fetched in the background.")
+st.write("This page auto-updates every 2 minutes. Data is fetched in the background. Made by crophantom, modified and hosted by JMastermind. Ima jedno mjesto, koje dom je svima nama.")
