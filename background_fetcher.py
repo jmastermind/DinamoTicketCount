@@ -141,8 +141,41 @@ def main():
     }
     results.append(summary_row)
     
+    # Aggregate by stand -- use first three words of a sector name
+    stands = {}
+    for r in results:
+        sector = r.get("Sector", "")
+        if sector and r["Event"] != "TOTAL":
+            words = sector.split()
+            if len(words) >= 3:
+                stand = " ".join(words[:3])
+            elif words:
+                stand = " ".join(words)
+            else:
+                stand = "Unknown"
+            if stand not in stands:
+                stands[stand] = {"Available": 0, "Taken": 0, "Total": 0}
+            stands[stand]["Available"] += r.get("Available", 0)
+            stands[stand]["Taken"] += r.get("Taken", 0)
+            stands[stand]["Total"] += r.get("Total", 0)
+    
+    # Add stand summary rows
+    checked_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    for stand, vals in stands.items():
+        stand_row = {
+            "Event": f"SUM {stand}",
+            "Date": "",
+            "Time": "",
+            "Sector": stand,
+            "Available": vals["Available"],
+            "Taken": vals["Taken"],
+            "Total": vals["Total"],
+            "CheckedAt": checked_at
+        }
+        results.append(stand_row)
+    
     out = {
-        "last_checked": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "last_checked": checked_at,
         "results": results
     }
     with open("DinamoTicketCount/results.json", "w") as f:
